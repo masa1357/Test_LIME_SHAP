@@ -94,17 +94,18 @@ def sprit_data_for_user(df, key, label, split_rate = [0.8, 0.2, 0], seed = 42):
     # 新しいデータフレームを定義
     df_pivoted = df.pivot_table(
         index=[key, label],
-        # columns="new_column",
+        columns="new_column",
         values="text",
         aggfunc=lambda x: " ".join(x),
     ).reset_index()
+    df_pivoted.drop("new_column")
 
     # 結果を表示
     logger.debug(f"Pivot Info : {df_pivoted.shape}")
     logger.debug(f"Pivot columns : {df_pivoted.columns}")
     
     # trainの割合を計算
-    train_df, tmp_df = train_test_split(df, train_size=split_rate[0], random_state=seed, stratify=df[label], shuffle=True)
+    train_df, tmp_df   = train_test_split(df, train_size=split_rate[0], random_state=seed, stratify=df[label], shuffle=True)
     valid_df, test_df  = train_test_split(tmp_df, test_size =split_rate[2], random_state=seed, stratify=df[label], shuffle=True)
     
     
