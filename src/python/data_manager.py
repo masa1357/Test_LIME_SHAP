@@ -3,8 +3,9 @@ from pathlib import Path
 from logging import getLogger, StreamHandler, Formatter
 from sklearn.model_selection import train_test_split
 from argparse import ArgumentParser
+import re
 
-STOPWORDS = [",", ".", "，", "．", "、", "。", "特にな" "特に無"]
+STOPWORDS = ["特にな" "特に無"]
 
 LABEL_MAPPING = {"A": 0, "B": 1, "C": 2, "D": 3, "E": 4}
 
@@ -31,6 +32,9 @@ def set_logger():
     logger.info("Test_message")
 
     return logger
+
+
+logger = set_logger()
 
 
 def parser():
@@ -134,6 +138,9 @@ def sprit_data_for_user(df, key, text, label, split_rate=[0.8, 0.2, 0], seed=42)
     def create_column_name(row):
         return f"{int(row['course_number']):02d}-{row['question_number']}"
 
+    # ノイズ除去
+    # df, _ = data_clean(df, text=text)
+
     # 新しい列
     df["new_column"] = df.apply(create_column_name, axis=1)
 
@@ -142,7 +149,8 @@ def sprit_data_for_user(df, key, text, label, split_rate=[0.8, 0.2, 0], seed=42)
         index=[key, label],
         columns="new_column",
         values=text,
-        aggfunc=lambda x: " ".join(x),
+        aggfunc=lambda x: " ".join(str(item) for item in x),
+        # aggfunc=lambda x: " ".join(x),
     ).reset_index()
     logger.debug(f"columns: {df_pivoted.columns}")
 
@@ -173,7 +181,7 @@ def sprit_data_for_user(df, key, text, label, split_rate=[0.8, 0.2, 0], seed=42)
         return decode(train_df), decode(tmp_df)
 
 
-def data_clean(df, stopwords=STOPWORDS):
+def data_clean(df, stopwords=STOPWORDS, text="answer_content"):
     """
     テキストデータのクリーニングを行う
     （stopwordsの除去，頻繁過ぎる文章の削除，長すぎる / 短すぎる文章の削除）
@@ -190,21 +198,41 @@ def data_clean(df, stopwords=STOPWORDS):
     cleaned_df : DataFrame
         前処理後のdf
     """
+    cleaned_df = df.copy()
+
     # NaNを削除
-    cleaned_df = df["text"].dropna()
+    cleaned_df = cleaned_df.dropna(subset=[text])
 
     # 長すぎる行，短すぎる行を削除
-    cleaned_df = cleaned_df[cleaned_df["text"].str.len() > 10]
-    cleaned_df = cleaned_df[cleaned_df["text"].str.len() < 1000]
+    # cleaned_df = cleaned_df.loc[cleaned_df[text].str.len() > 8]
+    # cleaned_df = cleaned_df.loc[cleaned_df[text].str.len() < 1000]
 
-    # stopwordsの除去
-    for stopword in stopwords:
-        cleaned_df["text"] = cleaned_df["text"].str.replace(stopword, "")
+    # stopwordsを含み，短すぎる行を削除
+    cleaned_df = cleaned_df.loc[
+        ~(
+            cleaned_df[text].str.contains("|".join(stopwords))
+            & (cleaned_df[text].str.len() <= 16)
+        )
+    ]
 
     logger.info(f"df shape : {df.shape}")
     logger.info(f"cleaned_df shape : {cleaned_df.shape}")
+    logger.info(f"dumped {df.shape[0] - cleaned_df.shape[0]} rows.")
 
-    return cleaned_df
+    # df_reset = df.reset_index(drop=True)
+    # cleaned_df = cleaned_df.reset_index(drop=True)
+
+    # 削除された行の可視化
+    mask = ~df[text].isin(cleaned_df[text])
+    dump_df = df[mask]
+    logger.info(f"dump_df shape : {dump_df.shape}")
+
+    # stopwordsの除去
+    cleaned_df[text] = cleaned_df[text].str.replace(
+        r"[、。！？｡･ﾟ＇＂「」『』（）《》【】〔〕…―ー－／＼〜〝〟〈〉]", "", regex=True
+    )
+
+    return cleaned_df, dump_df
 
 
 def main():
@@ -252,4 +280,4 @@ def main():
 
 
 if __name__ == "__main__":
-    logger = s
+    logger = set_logger()
