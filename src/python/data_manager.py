@@ -7,7 +7,7 @@ import re
 
 STOPWORDS = ["特にな" "特に無"]
 
-LABEL_MAPPING = {"A": 0, "B": 1, "C": 2, "D": 3, "E": 4}
+LABEL_MAPPING = {"A": 0, "B": 1, "C": 2, "D": 3, "F": 4}
 
 
 def set_logger():
@@ -92,7 +92,7 @@ def read_folder(path: str, rules: str = "*.csv"):
 
 
 def decode(df):
-    # 'userid' と 'label' を固定して残りの列を縦に並べる
+    # 'userid' と 'grade' を固定して残りの列を縦に並べる
     df_melted = df.melt(
         id_vars=["userid", "grade"], var_name="text_label", value_name="text"
     )
@@ -107,6 +107,9 @@ def decode(df):
 
     # 欠損値を削除
     df_melted = df_melted.dropna()
+
+    # df['label'] を補完
+    df_melted["label"] = df_melted["grade"].map(LABEL_MAPPING).astype(int)
 
     return df_melted
 
